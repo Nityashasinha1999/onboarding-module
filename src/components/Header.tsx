@@ -26,6 +26,8 @@ export default function Header() {
     router.push('/candidates/login');
   };
 
+  const isActive = (path: string) => pathname === path;
+
   return (
     <header className="sticky top-0 z-50 bg-gray-800 border-b border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,34 +38,36 @@ export default function Header() {
             </Link>
             <nav className="ml-10 flex items-center space-x-4">
               <Link
-                href="/candidates"
+                href="/"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  pathname.startsWith('/candidates') && !pathname.includes('/login') && !pathname.includes('/register')
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  isActive("/") ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
                 }`}
               >
-                Candidates
+                Home
+              </Link>
+              <Link
+                href="/dashboard"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive("/dashboard") ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                }`}
+              >
+                Dashboard
               </Link>
               <Link
                 href="/client-login"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  pathname === '/client-login'
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  isActive("/client-login") ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
                 }`}
               >
                 Client Login
               </Link>
               <Link
-                href="/dashboard"
+                href="/candidates/login"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  pathname === '/dashboard'
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  isActive("/candidates/login") ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
                 }`}
               >
-                Dashboard
+                Candidate Login
               </Link>
             </nav>
           </div>
