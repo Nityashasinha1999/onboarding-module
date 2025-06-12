@@ -81,7 +81,6 @@ export default function Dashboard() {
   if (loading || !data) {
     return (
       <div className="min-h-screen bg-black p-8">
-        <Header />
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-8">
             <div className="h-8 bg-gray-800 rounded w-1/4"></div>
@@ -99,7 +98,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      <Header />
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
