@@ -71,6 +71,10 @@ const mapContainerStyle = {
   height: '300px'
 };
 
+interface ErrorResponse {
+  error: string;
+}
+
 export default function ClientLoginPage() {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "otp" | "loggedIn">("email");
@@ -96,14 +100,14 @@ export default function ClientLoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send OTP');
+        throw new Error((data as ErrorResponse).error || 'Failed to send OTP');
       }
 
       setStep("otp");
       setMessage(`OTP has been sent to ${email}`);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error sending OTP:", err);
-      setMessage(err.message || 'Failed to send OTP');
+      setMessage(err instanceof Error ? err.message : 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
@@ -125,14 +129,14 @@ export default function ClientLoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to verify OTP');
+        throw new Error((data as ErrorResponse).error || 'Failed to verify OTP');
       }
 
       setMessage("OTP verified! Login successful.");
       setStep("loggedIn");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error verifying OTP:", err);
-      setMessage(err.message || 'Failed to verify OTP');
+      setMessage(err instanceof Error ? err.message : 'Failed to verify OTP');
     } finally {
       setLoading(false);
     }

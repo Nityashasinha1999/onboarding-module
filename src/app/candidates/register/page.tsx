@@ -107,7 +107,7 @@ export default function CandidateRegistration() {
       localStorage.setItem('candidateCredentials', JSON.stringify(credentials));
 
       router.push('/candidates/login');
-    } catch (err) {
+    } catch {
       setError('Registration failed. Please try again.');
     }
   };

@@ -1,101 +1,77 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Header from '@/components/Header';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Header from "@/components/Header";
+
+interface ErrorResponse {
+  error: string;
+}
 
 export default function CandidateLogin() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'email' | 'otp'>('email');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"email" | "otp">("email");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-
-  const handleSendOTP = () => {
-    console.log("Button clicked");
-    console.log("Email value:", email);
-    setError('');
-    
-    // Validate email
-    if (!validateEmail(email)) {
-      console.log("Email validation failed");
-      setError('Please enter a valid email address');
-      return;
-    }
-
+  const handleSendOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage("");
     setLoading(true);
 
     try {
-      // Generate and store OTP
-      const generatedOTP = generateOTP();
-      const otpData = {
-        code: generatedOTP,
-        timestamp: Date.now(),
-        email: email
-      };
-      localStorage.setItem('candidateOTP', JSON.stringify(otpData));
-      
-      // For development, show OTP in console
-      console.log('Generated OTP:', generatedOTP);
-      
-      setStep('otp');
-    } catch (err: any) {
-      console.log("Error in handleSendOTP:", err);
-      setError(err.message);
+      const response = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error((data as ErrorResponse).error || "Failed to send OTP");
+      }
+
+      setStep("otp");
+      setMessage(`OTP has been sent to ${email}`);
+    } catch (err) {
+      console.error("Error sending OTP:", err);
+      setMessage(err instanceof Error ? err.message : "Failed to send OTP");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOTP = () => {
-    setError('');
+  const handleVerifyOTP = async () => {
+    setMessage("");
     setLoading(true);
 
     try {
-      // Get stored OTP
-      const storedOTPData = JSON.parse(localStorage.getItem('candidateOTP') || '{}');
-      
-      if (!storedOTPData.code || !storedOTPData.timestamp) {
-        throw new Error('No OTP found. Please request a new OTP.');
+      const response = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error((data as ErrorResponse).error || "Failed to verify OTP");
       }
 
-      // Check if OTP is expired (5 minutes)
-      if (Date.now() - storedOTPData.timestamp > 5 * 60 * 1000) {
-        throw new Error('OTP has expired. Please request a new OTP.');
-      }
-
-      // Verify OTP
-      if (storedOTPData.code !== otp) {
-        throw new Error('Invalid OTP');
-      }
-
-      // Get candidate data
-      const candidates = JSON.parse(localStorage.getItem('candidates') || '[]');
-      const candidate = candidates.find((c: any) => c.email.toLowerCase() === email.toLowerCase());
-
-      if (!candidate) {
-        throw new Error('Candidate not found');
-      }
-
-      // Clear OTP
-      localStorage.removeItem('candidateOTP');
-
-      // Store logged in user info
-      localStorage.setItem('loggedInCandidate', JSON.stringify(candidate));
-      router.push('/candidates/profile');
-    } catch (err: any) {
-      setError(err.message);
+      // Store candidate info in localStorage
+      localStorage.setItem("candidateEmail", email);
+      router.push("/candidates/profile");
+    } catch (err) {
+      console.error("Error verifying OTP:", err);
+      setMessage(err instanceof Error ? err.message : "Failed to verify OTP");
     } finally {
       setLoading(false);
     }
@@ -108,93 +84,83 @@ export default function CandidateLogin() {
         <div className="max-w-md mx-auto">
           <h1 className="text-3xl font-bold mb-8">Candidate Login</h1>
           
-          {step === 'email' ? (
-            <div className="space-y-6">
+          {step === "email" ? (
+            <form onSubmit={handleSendOTP} className="space-y-6">
               <div>
-                <label htmlFor="email-input" className="block text-sm font-medium mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                   Email
                 </label>
                 <input
-                  id="email-input"
-                  name="email"
-                  type="text"
+                  id="email"
+                  type="email"
                   value={email}
                   onChange={(e) => {
-                    console.log("Email changed:", e.target.value);
                     setEmail(e.target.value);
-                    setError('');
+                    setMessage("");
                   }}
-                  className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="Enter your email address"
+                  className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder="Enter your email"
+                  required
                 />
               </div>
 
-              {error && (
+              {message && (
                 <div className="text-red-500 text-sm">
-                  {error}
+                  {message}
                 </div>
               )}
 
-              <div className="flex flex-col space-y-4">
-                <button
-                  type="button"
-                  onClick={handleSendOTP}
-                  disabled={loading}
-                  className="w-full px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {loading ? 'Sending...' : 'Send OTP'}
-                </button>
-                
-                <p className="text-center text-sm text-gray-400">
-                  Don't have an account?{' '}
-                  <Link href="/candidates/register" className="text-blue-400 hover:text-blue-300">
-                    Register here
-                  </Link>
-                </p>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? "Sending..." : "Send OTP"}
+              </button>
+
+              <div className="text-center">
+                <Link href="/candidates/register" className="text-sm text-gray-400 hover:text-gray-300">
+                  Don&apos;t have an account? Register here
+                </Link>
               </div>
-            </div>
+            </form>
           ) : (
             <div className="space-y-6">
               <div>
-                <label htmlFor="otp-input" className="block text-sm font-medium mb-2">
+                <label htmlFor="otp" className="block text-sm font-medium text-gray-300 mb-2">
                   Enter OTP
                 </label>
                 <input
-                  id="otp-input"
-                  name="otp"
+                  id="otp"
                   type="text"
                   value={otp}
                   onChange={(e) => {
                     setOtp(e.target.value);
-                    setError('');
+                    setMessage("");
                   }}
-                  className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="Enter 6-digit OTP"
+                  className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder="Enter OTP"
+                  maxLength={6}
                 />
-                <p className="mt-2 text-sm text-gray-400">
-                  We've sent a 6-digit OTP to {email}
-                </p>
               </div>
 
-              {error && (
+              {message && (
                 <div className="text-red-500 text-sm">
-                  {error}
+                  {message}
                 </div>
               )}
 
               <div className="flex flex-col space-y-4">
                 <button
-                  type="button"
                   onClick={handleVerifyOTP}
                   disabled={loading}
                   className="w-full px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'Verifying...' : 'Verify OTP'}
+                  {loading ? "Verifying..." : "Verify OTP"}
                 </button>
                 
                 <button
-                  type="button"
-                  onClick={() => setStep('email')}
+                  onClick={() => setStep("email")}
                   className="text-sm text-gray-400 hover:text-gray-300"
                 >
                   Change email
