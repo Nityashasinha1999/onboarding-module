@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 
+interface Candidate {
+  id: string;
+  email: string;
+}
+
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
@@ -16,7 +21,7 @@ export default function Header() {
     setIsLoggedIn(!!candidateId);
     if (candidateId) {
       const candidates = JSON.parse(localStorage.getItem('candidates') || '[]');
-      const currentCandidate = candidates.find((c: any) => c.id === candidateId);
+      const currentCandidate = candidates.find((c: Candidate) => c.id === candidateId);
       setCandidateEmail(currentCandidate?.email || '');
     }
   }, [pathname]); // Re-check on pathname change

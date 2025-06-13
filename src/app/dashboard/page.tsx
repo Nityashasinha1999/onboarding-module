@@ -13,7 +13,6 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import Header from '@/components/Header';
 
 interface AnalyticsData {
   totalCandidates: number;

@@ -4,10 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-interface ErrorResponse {
-  message: string;
-}
-
 interface Candidate {
   id: string;
   name: string;
