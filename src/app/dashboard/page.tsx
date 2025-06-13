@@ -34,6 +34,7 @@ interface Candidate {
   status: string;
 }
 
+
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
 export default function Dashboard() {
@@ -44,7 +45,7 @@ export default function Dashboard() {
     clientBreakdown: [],
   });
   const [loading, setLoading] = useState(true);
-
+// console.log(loading)
   useEffect(() => {
     const fetchData = () => {
       try {
