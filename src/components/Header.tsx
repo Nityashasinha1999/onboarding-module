@@ -5,80 +5,75 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 
 export default function Header() {
-  const router = useRouter();
   const pathname = usePathname();
+  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState("");
 
   useEffect(() => {
-    const loggedInCandidate = localStorage.getItem('loggedInCandidate');
-    if (loggedInCandidate) {
-      const candidate = JSON.parse(loggedInCandidate);
-      setIsLoggedIn(true);
-      setUserName(candidate.name);
+    // Check if user is logged in by looking for candidateId in localStorage
+    const candidateId = localStorage.getItem('candidateId');
+    setIsLoggedIn(!!candidateId);
+    if (candidateId) {
+      const candidates = JSON.parse(localStorage.getItem('candidates') || '[]');
+      const currentCandidate = candidates.find((c: any) => c.id === candidateId);
+      setCandidateEmail(currentCandidate?.email || '');
     }
-  }, [pathname]);
+  }, [pathname]); // Re-check on pathname change
 
   const handleLogout = () => {
-    localStorage.removeItem('loggedInCandidate');
+    localStorage.removeItem('candidateId');
     setIsLoggedIn(false);
-    setUserName('');
-    router.push('/candidates/login');
+    setCandidateEmail('');
+    router.push('/');
   };
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => {
+    return pathname === path;
+  };
 
   return (
-    <header className="sticky top-0 z-50 bg-gray-800 border-b border-gray-700">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 bg-gray-900 border-b border-gray-800">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-white">
+            <Link href="/" className="text-white font-bold text-xl">
               ESOL
             </Link>
-            <nav className="ml-10 flex items-center space-x-4">
-              <Link
-                href="/"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive("/") ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                }`}
-              >
-                Home
-              </Link>
-              <Link
-                href="/dashboard"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive("/dashboard") ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                }`}
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/client-login"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive("/client-login") ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                }`}
-              >
-                Client Login
-              </Link>
-              <Link
-                href="/candidates/login"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive("/candidates/login") ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                }`}
-              >
-                Candidate Login
-              </Link>
-            </nav>
+            <div className="hidden md:block ml-10">
+              <div className="flex items-baseline space-x-4">
+                <Link
+                  href="/"
+                  className={`${
+                    isActive('/')
+                      ? 'text-white'
+                      : 'text-gray-300 hover:text-white'
+                  } px-3 py-2 rounded-md text-sm font-medium`}
+                >
+                  Home
+                </Link>
+                {isLoggedIn && (
+                  <Link
+                    href="/candidates/profile"
+                    className={`${
+                      isActive('/candidates/profile')
+                        ? 'text-white'
+                        : 'text-gray-300 hover:text-white'
+                    } px-3 py-2 rounded-md text-sm font-medium`}
+                  >
+                    Profile
+                  </Link>
+                )}
+              </div>
+            </div>
           </div>
-
           <div className="flex items-center">
             {isLoggedIn ? (
               <div className="flex items-center space-x-4">
-                <span className="text-gray-300">Welcome, {userName}</span>
+                <span className="text-gray-300 text-sm">{candidateEmail}</span>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Logout
                 </button>
@@ -87,21 +82,13 @@ export default function Header() {
               <div className="flex items-center space-x-4">
                 <Link
                   href="/candidates/login"
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    pathname === '/candidates/login'
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Login
                 </Link>
                 <Link
                   href="/candidates/register"
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    pathname === '/candidates/register'
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
                 >
                   Register
                 </Link>
@@ -109,7 +96,7 @@ export default function Header() {
             )}
           </div>
         </div>
-      </div>
+      </nav>
     </header>
   );
 } 

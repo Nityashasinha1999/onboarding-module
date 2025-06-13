@@ -1,100 +1,139 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
-import Header from '@/components/Header';
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import dynamic from 'next/dynamic';
 
 interface Candidate {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  address: string;
+  role: string;
   location: {
     lat: number;
     lng: number;
   };
-  createdAt: string;
+  client: string;
+  status: string;
 }
+
+// Dynamically import the Google Maps component with no SSR
+const MapComponent = dynamic(
+  () => import('@/components/MapComponent'),
+  { ssr: false }
+);
 
 export default function CandidateProfile() {
   const router = useRouter();
   const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [mapCenter, setMapCenter] = useState({ lat: 20.5937, lng: 78.9629 }); // Default to India center
 
   useEffect(() => {
-    const loggedInCandidate = localStorage.getItem('loggedInCandidate');
-    if (!loggedInCandidate) {
-      router.push('/candidates/login');
+    const candidateId = localStorage.getItem("candidateId");
+    if (!candidateId) {
+      router.push("/candidates/login");
       return;
     }
-    setCandidate(JSON.parse(loggedInCandidate));
+
+    try {
+      const candidates = JSON.parse(localStorage.getItem("candidates") || "[]");
+      const currentCandidate = candidates.find((c: Candidate) => c.id === candidateId);
+      
+      if (currentCandidate) {
+        setCandidate(currentCandidate);
+        // Set map center to candidate's location if available
+        if (currentCandidate.location.lat !== 0 && currentCandidate.location.lng !== 0) {
+          setMapCenter(currentCandidate.location);
+        }
+      } else {
+        // If candidate not found in the list but ID exists, redirect to login
+        router.push("/candidates/login");
+      }
+    } catch (error) {
+      console.error("Error loading candidate data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   if (!candidate) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white">
-        <div className="p-8">
-          <div className="max-w-4xl mx-auto">
-            Loading...
-          </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-center">
+          <h1 className="text-2xl font-bold mb-4">Profile Not Found</h1>
+          <p className="text-gray-400">Please log in to view your profile.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="p-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Profile</h1>
-
+    <main className="min-h-screen bg-black">
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="bg-gray-900 rounded-lg p-8">
+          <h1 className="text-3xl font-bold text-white mb-8">Candidate Profile</h1>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold mb-4">Personal Information</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400">Full Name</label>
-                    <p className="mt-1">{candidate.name}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400">Email</label>
-                    <p className="mt-1">{candidate.email}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400">Phone</label>
-                    <p className="mt-1">{candidate.phone}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400">Address</label>
-                    <p className="mt-1">{candidate.address}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400">Member Since</label>
-                    <p className="mt-1">{new Date(candidate.createdAt).toLocaleDateString()}</p>
-                  </div>
-                </div>
+                <h2 className="text-sm font-medium text-gray-400 mb-1">Name</h2>
+                <p className="text-white text-lg">{candidate.name}</p>
+              </div>
+              
+              <div>
+                <h2 className="text-sm font-medium text-gray-400 mb-1">Email</h2>
+                <p className="text-white text-lg">{candidate.email}</p>
+              </div>
+              
+              <div>
+                <h2 className="text-sm font-medium text-gray-400 mb-1">Role</h2>
+                <p className="text-white text-lg">{candidate.role}</p>
               </div>
             </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Location</h2>
-              <div className="h-[300px] rounded-lg overflow-hidden">
-                <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-                  <GoogleMap
-                    mapContainerStyle={{ width: '100%', height: '100%' }}
-                    center={candidate.location}
-                    zoom={13}
-                  >
-                    <Marker position={candidate.location} />
-                  </GoogleMap>
-                </LoadScript>
+            
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-sm font-medium text-gray-400 mb-1">Location</h2>
+                <div className="h-[300px] rounded-lg overflow-hidden mb-4">
+                  <MapComponent
+                    center={mapCenter}
+                    markerPosition={candidate.location}
+                  />
+                </div>
+                <p className="text-white text-sm">
+                  Latitude: {candidate.location.lat}
+                  <br />
+                  Longitude: {candidate.location.lng}
+                </p>
+              </div>
+              
+              <div>
+                <h2 className="text-sm font-medium text-gray-400 mb-1">Client</h2>
+                <p className="text-white text-lg">{candidate.client}</p>
+              </div>
+              
+              <div>
+                <h2 className="text-sm font-medium text-gray-400 mb-1">Status</h2>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  candidate.status === "Active" 
+                    ? "bg-green-900 text-green-200"
+                    : "bg-yellow-900 text-yellow-200"
+                }`}>
+                  {candidate.status}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 } 

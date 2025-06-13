@@ -1,6 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
+  PieChart,
+  Pie,
   BarChart,
   Bar,
   XAxis,
@@ -8,68 +10,91 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  PieChart,
-  Pie,
+  ResponsiveContainer,
   Cell,
 } from "recharts";
 import Header from '@/components/Header';
 
 interface AnalyticsData {
   totalCandidates: number;
-  onboardedCandidates: number;
-  locationBreakdown: { name: string; value: number }[];
-  roleBreakdown: { name: string; value: number }[];
-  clientBreakdown: { name: string; value: number }[];
+  locationBreakdown: Array<{ name: string; value: number }>;
+  roleBreakdown: Array<{ name: string; value: number }>;
+  clientBreakdown: Array<{ name: string; value: number }>;
 }
 
 interface Candidate {
-  id: number;
+  id: string;
   name: string;
   email: string;
-  location: string;
   role: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
   client: string;
-  onboarded: boolean;
+  status: string;
 }
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
 export default function Dashboard() {
-  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsData>({
+    totalCandidates: 0,
+    locationBreakdown: [],
+    roleBreakdown: [],
+    clientBreakdown: [],
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching data
     const fetchData = () => {
       try {
-        const candidates = JSON.parse(localStorage.getItem("candidates") || "[]") as Candidate[];
+        const candidatesData = localStorage.getItem("candidates");
+        if (!candidatesData) {
+          setLoading(false);
+          return;
+        }
 
-        const analytics: AnalyticsData = {
+        const candidates: Candidate[] = JSON.parse(candidatesData);
+
+        // Calculate analytics
+        const locationMap = new Map<string, number>();
+        const roleMap = new Map<string, number>();
+        const clientMap = new Map<string, number>();
+
+        candidates.forEach((candidate) => {
+          // Handle location
+          const locationKey = `${candidate.location.lat},${candidate.location.lng}`;
+          locationMap.set(
+            locationKey,
+            (locationMap.get(locationKey) || 0) + 1
+          );
+
+          // Handle role
+          roleMap.set(candidate.role, (roleMap.get(candidate.role) || 0) + 1);
+
+          // Handle client
+          clientMap.set(
+            candidate.client,
+            (clientMap.get(candidate.client) || 0) + 1
+          );
+        });
+
+        setAnalytics({
           totalCandidates: candidates.length,
-          onboardedCandidates: candidates.filter((c) => c.onboarded).length,
-          locationBreakdown: Object.entries(
-            candidates.reduce((acc: Record<string, number>, c) => {
-              acc[c.location] = (acc[c.location] || 0) + 1;
-              return acc;
-            }, {})
-          ).map(([name, value]) => ({ name, value })),
-          roleBreakdown: Object.entries(
-            candidates.reduce((acc: Record<string, number>, c) => {
-              acc[c.role] = (acc[c.role] || 0) + 1;
-              return acc;
-            }, {})
-          ).map(([name, value]) => ({ name, value })),
-          clientBreakdown: Object.entries(
-            candidates.reduce((acc: Record<string, number>, c) => {
-              acc[c.client] = (acc[c.client] || 0) + 1;
-              return acc;
-            }, {})
-          ).map(([name, value]) => ({ name, value })),
-        };
-
-        setData(analytics);
+          locationBreakdown: Array.from(locationMap.entries()).map(
+            ([name, value]) => ({ name, value })
+          ),
+          roleBreakdown: Array.from(roleMap.entries()).map(([name, value]) => ({
+            name,
+            value,
+          })),
+          clientBreakdown: Array.from(clientMap.entries()).map(
+            ([name, value]) => ({ name, value })
+          ),
+        });
       } catch (error) {
-        console.error("Error fetching analytics data:", error);
+        console.error("Error fetching analytics:", error);
       } finally {
         setLoading(false);
       }
@@ -78,23 +103,13 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  if (loading || !data) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-black p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-8">
-            <div className="h-8 bg-gray-800 rounded w-1/4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="h-64 bg-gray-800 rounded"></div>
-              <div className="h-64 bg-gray-800 rounded"></div>
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
-
-  const candidates = JSON.parse(localStorage.getItem('candidates') || '[]') as Candidate[];
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -106,14 +121,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div className="bg-gray-800 p-6 rounded-lg">
               <h3 className="text-lg font-medium text-gray-400">Total Candidates</h3>
-              <p className="text-3xl font-bold mt-2">{data.totalCandidates}</p>
-            </div>
-            <div className="bg-gray-800 p-6 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-400">Onboarded Candidates</h3>
-              <p className="text-3xl font-bold mt-2">{data.onboardedCandidates}</p>
-              <p className="text-sm text-gray-400 mt-1">
-                {((data.onboardedCandidates / data.totalCandidates) * 100).toFixed(1)}% onboarded
-              </p>
+              <p className="text-3xl font-bold mt-2">{analytics.totalCandidates}</p>
             </div>
           </div>
 
@@ -123,23 +131,28 @@ export default function Dashboard() {
             <div className="bg-gray-800 p-6 rounded-lg">
               <h3 className="text-lg font-medium mb-4">Location Breakdown</h3>
               <div className="h-64">
-                <PieChart width={400} height={300}>
-                  <Pie
-                    data={data.locationBreakdown}
-                    cx={200}
-                    cy={150}
-                    labelLine={false}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {data.locationBreakdown.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={analytics.locationBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label
+                    >
+                      {analytics.locationBreakdown.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -147,14 +160,16 @@ export default function Dashboard() {
             <div className="bg-gray-800 p-6 rounded-lg">
               <h3 className="text-lg font-medium mb-4">Role Breakdown</h3>
               <div className="h-64">
-                <BarChart width={400} height={300} data={data.roleBreakdown}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" fill="#8884d8" />
-                </BarChart>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics.roleBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -162,54 +177,29 @@ export default function Dashboard() {
             <div className="bg-gray-800 p-6 rounded-lg">
               <h3 className="text-lg font-medium mb-4">Client Breakdown</h3>
               <div className="h-64">
-                <BarChart width={400} height={300} data={data.clientBreakdown}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" fill="#82ca9d" />
-                </BarChart>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={analytics.clientBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label
+                    >
+                      {analytics.clientBreakdown.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            </div>
-          </div>
-
-          {/* Filtered Candidates List */}
-          <div className="bg-gray-800 p-6 rounded-lg">
-            <h3 className="text-lg font-medium mb-4">Filtered Candidates</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Client
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-700">
-                  {candidates.map((candidate) => (
-                    <tr key={candidate.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">{candidate.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{candidate.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{candidate.location}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{candidate.role}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{candidate.client}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>

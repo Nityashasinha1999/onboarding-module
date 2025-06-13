@@ -1,28 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/Header";
 
 interface ErrorResponse {
-  error: string;
+  message: string;
+}
+
+interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+  client: string;
+  status: string;
 }
 
 export default function CandidateLogin() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"email" | "otp">("email");
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage("");
-    setLoading(true);
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [resendCooldown]);
 
+  const handleSendOTP = async () => {
     try {
+      setIsLoading(true);
+      setMessage("");
+
       const response = await fetch("/api/send-otp", {
         method: "POST",
         headers: {
@@ -34,24 +58,24 @@ export default function CandidateLogin() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error((data as ErrorResponse).error || "Failed to send OTP");
+        throw new Error(data.message || "Failed to send OTP");
       }
 
-      setStep("otp");
-      setMessage(`OTP has been sent to ${email}`);
-    } catch (err) {
-      console.error("Error sending OTP:", err);
-      setMessage(err instanceof Error ? err.message : "Failed to send OTP");
+      setMessage("OTP sent successfully!");
+      setOtpSent(true);
+      setResendCooldown(30); // Set 30 seconds cooldown
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to send OTP");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleVerifyOTP = async () => {
-    setMessage("");
-    setLoading(true);
-
     try {
+      setIsLoading(true);
+      setMessage("");
+
       const response = await fetch("/api/verify-otp", {
         method: "POST",
         headers: {
@@ -63,112 +87,150 @@ export default function CandidateLogin() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error((data as ErrorResponse).error || "Failed to verify OTP");
+        throw new Error(data.message || "Failed to verify OTP");
       }
 
-      // Store candidate info in localStorage
-      localStorage.setItem("candidateEmail", email);
+      // Get candidates from localStorage
+      const candidates = JSON.parse(localStorage.getItem("candidates") || "[]");
+      const currentCandidate = candidates.find((c: Candidate) => c.email === email);
+
+      if (!currentCandidate) {
+        // If candidate doesn't exist, create a new one
+        const candidateId = Date.now().toString();
+        const newCandidate: Candidate = {
+          id: candidateId,
+          name: email.split("@")[0], // Use email username as name
+          email: email,
+          role: "Developer", // Default role
+          location: {
+            lat: 0,
+            lng: 0,
+          },
+          client: "ESOL",
+          status: "Active",
+        };
+
+        // Add new candidate to the list
+        candidates.push(newCandidate);
+        localStorage.setItem("candidates", JSON.stringify(candidates));
+        localStorage.setItem("candidateId", candidateId);
+      } else {
+        // If candidate exists, store their ID
+        localStorage.setItem("candidateId", currentCandidate.id);
+      }
+
+      setMessage("OTP verified successfully!");
       router.push("/candidates/profile");
-    } catch (err) {
-      console.error("Error verifying OTP:", err);
-      setMessage(err instanceof Error ? err.message : "Failed to verify OTP");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to verify OTP");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="p-8">
-        <div className="max-w-md mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Candidate Login</h1>
-          
-          {step === "email" ? (
-            <form onSubmit={handleSendOTP} className="space-y-6">
+    <main className="min-h-screen bg-black">
+      <div className="max-w-md mx-auto px-4 py-12">
+        <div className="bg-gray-900 rounded-lg p-8">
+          <h1 className="text-2xl font-bold text-white mb-6">Candidate Login</h1>
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-300 mb-1"
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            {otpSent && (
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  Email
+                <label
+                  htmlFor="otp"
+                  className="block text-sm font-medium text-gray-300 mb-1"
+                >
+                  OTP
                 </label>
                 <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setMessage("");
-                  }}
-                  className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="Enter your email"
+                  type="text"
+                  id="otp"
+                  name="otp"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter OTP"
                   required
                 />
-              </div>
-
-              {message && (
-                <div className="text-red-500 text-sm">
-                  {message}
+                <div className="mt-2 text-sm text-gray-400">
+                  {resendCooldown > 0 ? (
+                    <span>Resend OTP in {resendCooldown} seconds</span>
+                  ) : (
+                    <button
+                      onClick={handleSendOTP}
+                      disabled={isLoading}
+                      className="text-blue-500 hover:text-blue-400 disabled:opacity-50"
+                    >
+                      Resend OTP
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+            {message && (
+              <div
+                className={`p-3 rounded-lg ${
+                  message.includes("successfully")
+                    ? "bg-green-900 text-green-200"
+                    : "bg-red-900 text-red-200"
+                }`}
               >
-                {loading ? "Sending..." : "Send OTP"}
-              </button>
-
-              <div className="text-center">
-                <Link href="/candidates/register" className="text-sm text-gray-400 hover:text-gray-300">
-                  Don&apos;t have an account? Register here
-                </Link>
+                {message}
               </div>
-            </form>
-          ) : (
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-gray-300 mb-2">
-                  Enter OTP
-                </label>
-                <input
-                  id="otp"
-                  type="text"
-                  value={otp}
-                  onChange={(e) => {
-                    setOtp(e.target.value);
-                    setMessage("");
-                  }}
-                  className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="Enter OTP"
-                  maxLength={6}
-                />
-              </div>
+            )}
 
-              {message && (
-                <div className="text-red-500 text-sm">
-                  {message}
-                </div>
-              )}
-
-              <div className="flex flex-col space-y-4">
+            <div className="space-y-3">
+              {!otpSent ? (
+                <button
+                  onClick={handleSendOTP}
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? "Sending..." : "Send OTP"}
+                </button>
+              ) : (
                 <button
                   onClick={handleVerifyOTP}
-                  disabled={loading}
-                  className="w-full px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  disabled={isLoading}
+                  className="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Verifying..." : "Verify OTP"}
+                  {isLoading ? "Verifying..." : "Verify OTP"}
                 </button>
-                
-                <button
-                  onClick={() => setStep("email")}
-                  className="text-sm text-gray-400 hover:text-gray-300"
-                >
-                  Change email
-                </button>
-              </div>
+              )}
             </div>
-          )}
+
+            <div className="text-center text-gray-400">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/candidates/register"
+                className="text-blue-500 hover:text-blue-400"
+              >
+                Register here
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 } 

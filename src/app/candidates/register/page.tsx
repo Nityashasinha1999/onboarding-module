@@ -89,24 +89,33 @@ export default function CandidateRegistration() {
     }
 
     try {
+      // Generate a unique ID for the candidate
+      const candidateId = Date.now().toString();
+
       // Store registration data in localStorage
       const candidates = JSON.parse(localStorage.getItem('candidates') || '[]');
-      candidates.push({
+      const newCandidate = {
         ...formData,
-        id: Date.now().toString(),
+        id: candidateId,
         createdAt: new Date().toISOString()
-      });
+      };
+      candidates.push(newCandidate);
       localStorage.setItem('candidates', JSON.stringify(candidates));
 
       // Store login credentials
       const credentials = JSON.parse(localStorage.getItem('candidateCredentials') || '[]');
       credentials.push({
+        id: candidateId,
         email: formData.email,
         password: formData.password
       });
       localStorage.setItem('candidateCredentials', JSON.stringify(credentials));
 
-      router.push('/candidates/login');
+      // Store the candidate ID in localStorage for profile access
+      localStorage.setItem('candidateId', candidateId);
+
+      // Redirect to profile page
+      router.push('/candidates/profile');
     } catch {
       setError('Registration failed. Please try again.');
     }
